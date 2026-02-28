@@ -21,10 +21,7 @@ CLEAR_RAW_SQL = """
 """
 
 CLEAR_CURATED_SQL = """
-    TRUNCATE TABLE curated.X_train;
-    TRUNCATE TABLE curated.X_test;
-    TRUNCATE TABLE curated.y_train;
-    TRUNCATE TABLE curated.y_test;
+    TRUNCATE TABLE curated.curated_penguins;
 """
 
 
