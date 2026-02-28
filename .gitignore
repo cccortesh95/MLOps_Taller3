@@ -2,3 +2,4 @@ train.ipynb
 dataset/*
 logs/*
 dags/__pycache__
+dags/penguins_pipeline/__pycache__
