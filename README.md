@@ -43,7 +43,7 @@ mysql:
 image: mysql:8.0
 ```
 
-Se fijó la versión mayor `8.0` en lugar de usar `latest`. Esto garantiza reproducibilidad entre ambientes: todos los miembros del equipo y los entornos de CI/CD trabajan con la misma versión del motor. MySQL 8.0 ofrece mejoras en rendimiento, seguridad por defecto (caching_sha2_password) y soporte completo de window functions, que pueden ser útiles en consultas analíticas futuras.
+Se fijó la versión mayor `8.0` en lugar de usar `latest`. Esto garantiza reproducibilidad entre ambientes.
 
 ### 1.2 Variables de entorno
 
@@ -57,10 +57,10 @@ environment:
 
 | Variable | Propósito | Decisión |
 |---|---|---|
-| `MYSQL_ROOT_PASSWORD` | Contraseña del usuario root. Es obligatoria para que el contenedor arranque. | Se definió un valor explícito. En producción debería inyectarse vía Docker secrets o un gestor de secretos externo. |
+| `MYSQL_ROOT_PASSWORD` | Contraseña del usuario root. Es obligatoria para que el contenedor arranque. | Se definió un valor explícito. |
 | `MYSQL_DATABASE` | Crea automáticamente una base de datos al iniciar por primera vez. | Se configuró `mydatabase` como base por defecto. Las bases reales del pipeline (`raw` y `curated`) se crean en el script de inicialización para tener mayor control sobre su estructura. |
-| `MYSQL_USER` | Crea un usuario no-root con permisos sobre `MYSQL_DATABASE`. | Se usa `user` como cuenta de servicio para las conexiones desde Airflow, siguiendo el principio de mínimo privilegio (no conectar como root desde la aplicación). |
-| `MYSQL_PASSWORD` | Contraseña del usuario de servicio. | Mismo criterio que `MYSQL_ROOT_PASSWORD`: aceptable para desarrollo, en producción debe externalizarse. |
+| `MYSQL_USER` | Crea un usuario no-root con permisos sobre `MYSQL_DATABASE`. | Se usa `user` como cuenta de servicio para las conexiones desde Airflow. |
+| `MYSQL_PASSWORD` | Contraseña del usuario de servicio. | Mismo criterio que `MYSQL_ROOT_PASSWORD`: aceptable para desarrollo. |
 
 ### 1.3 Puertos
 
@@ -69,7 +69,7 @@ ports:
   - "3306:3306"
 ```
 
-Se expone el puerto estándar de MySQL al host. Esto permite conectarse desde herramientas externas (MySQL Workbench, DBeaver, CLI) para inspección y debugging durante el desarrollo. En un entorno productivo, este mapeo debería eliminarse y dejar que los servicios se comuniquen únicamente a través de la red interna de Docker.
+Se expone el puerto estándar de MySQL al host. 
 
 ### 1.4 Volúmenes
 
@@ -81,7 +81,7 @@ volumes:
 
 | Volumen | Tipo | Propósito |
 |---|---|---|
-| `mysql_data:/var/lib/mysql` | Named volume | Persiste los datos de MySQL entre reinicios del contenedor. Sin este volumen, cada `docker-compose down && up` perdería toda la información almacenada. Docker gestiona su ubicación en disco. |
+| `mysql_data:/var/lib/mysql` | Named volume | Persiste los datos de MySQL entre reinicios del contenedor |
 | `./mysql-init:/docker-entrypoint-initdb.d` | Bind mount | MySQL ejecuta automáticamente todos los archivos `.sql` y `.sh` dentro de `/docker-entrypoint-initdb.d` la primera vez que se inicializa la base de datos (cuando el volumen de datos está vacío). Esto permite crear las bases `raw` y `curated`, sus tablas y los permisos necesarios de forma declarativa y versionable en Git. |
 
 ### 1.5 Health check
