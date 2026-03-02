@@ -271,7 +271,7 @@ chmod -R 775 /opt/airflow/models
 
 ### 8.1 Integración en Docker Compose
 
-La API se agregó como servicio `penguin-api` en el compose. Comparte un volumen `models_data` con Airflow para acceder a los modelos generados por el pipeline:
+La API se agregó como servicio `penguin-api` en el compose:
 
 ```yaml
 penguin-api:
@@ -293,15 +293,7 @@ penguin-api:
   restart: always
 ```
 
-El volumen `models_data` se monta en `/opt/airflow/models` para Airflow (donde el DAG escribe los `.pkl`) y en `/app/models` para la API, donde los lee para servir predicciones.
-
-Al usar un named volume, Docker lo crea como root. Para que el usuario `airflow` (UID 50000) pueda escribir los modelos, se agregó un `chown` en el servicio `airflow-init`:
-
-```bash
-chown -R "${AIRFLOW_UID}:0" /opt/airflow/models
-```
-
-La API corre internamente en el puerto 8000 y se expone en el puerto 8989 del host.
+La API corre internamente en el puerto 8000 y se expone en el puerto 8989 del host. El volumen compartido con Airflow se detalla en la [sección 7](#7-volumen-compartido-de-modelos).
 
 <!-- Imagen: Servicio penguin-api corriendo -->
 ![API corriendo]()
