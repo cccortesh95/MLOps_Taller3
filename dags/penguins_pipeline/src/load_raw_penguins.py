@@ -1,13 +1,14 @@
 """Cargar datos crudos de penguins a raw.raw_penguins sin preprocesamiento."""
 import pandas as pd
-import mysql.connector
-from src.config import MYSQL_CONFIG, DATASET_PATH
+from airflow.providers.mysql.hooks.mysql import MySqlHook
+from src.config import MYSQL_CONN_ID, DATASET_PATH
 
 
 def load_raw_penguins():
     df = pd.read_csv(DATASET_PATH)
 
-    conn = mysql.connector.connect(database="raw", **MYSQL_CONFIG)
+    hook = MySqlHook(mysql_conn_id=MYSQL_CONN_ID, schema="raw")
+    conn = hook.get_conn()
     cursor = conn.cursor()
 
     cursor.execute("""

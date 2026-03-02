@@ -7,6 +7,9 @@ RUN apt-get update \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
-COPY requirements.txt /
-RUN uv pip install --no-cache --system "apache-airflow==${AIRFLOW_VERSION}" -r /requirements.txt
+COPY pyproject.toml /app/
+WORKDIR /app
+ENV UV_SYSTEM_PYTHON=1
+ENV UV_PROJECT_ENVIRONMENT=/usr/local
+RUN uv sync --no-dev
 USER airflow

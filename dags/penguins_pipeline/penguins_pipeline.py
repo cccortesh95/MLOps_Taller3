@@ -9,16 +9,9 @@ from src.train_models import train_models
 
 MYSQL_CONN_ID = "mysql_default"
 
-CLEAR_RAW_SQL = """
-    TRUNCATE TABLE raw.raw_penguins;
-"""
+CLEAR_RAW_SQL = """TRUNCATE TABLE raw.raw_penguins;"""
 
-CLEAR_CURATED_SQL = """
-    TRUNCATE TABLE curated.X_train;
-    TRUNCATE TABLE curated.X_test;
-    TRUNCATE TABLE curated.y_train;
-    TRUNCATE TABLE curated.y_test;
-"""
+CLEAR_CURATED_SQL = """TRUNCATE TABLE curated.curated_penguins;"""
 
 with DAG(
     dag_id="penguins_pipeline",

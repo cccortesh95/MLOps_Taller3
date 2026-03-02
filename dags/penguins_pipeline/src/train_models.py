@@ -5,22 +5,21 @@ Entrenamiento basado en train.ipynb:
 - Evaluar y guardar modelos y métricas
 """
 import pandas as pd
-import mysql.connector
+from airflow.providers.mysql.hooks.mysql import MySqlHook
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import joblib
 import os
-from src.config import MYSQL_CONFIG, MODELS_PATH
+from src.config import MYSQL_CONN_ID, MODELS_PATH
 
 
 def train_models():
-    conn = mysql.connector.connect(database="curated", **MYSQL_CONFIG)
-    X_train = pd.read_sql("SELECT * FROM X_train", conn)
-    X_test = pd.read_sql("SELECT * FROM X_test", conn)
-    y_train = pd.read_sql("SELECT * FROM y_train", conn)["species"]
-    y_test = pd.read_sql("SELECT * FROM y_test", conn)["species"]
-    conn.close()
+    hook = MySqlHook(mysql_conn_id=MYSQL_CONN_ID, schema="curated")
+    X_train = hook.get_pandas_df("SELECT * FROM X_train")
+    X_test = hook.get_pandas_df("SELECT * FROM X_test")
+    y_train = hook.get_pandas_df("SELECT * FROM y_train")["species"]
+    y_test = hook.get_pandas_df("SELECT * FROM y_test")["species"]
 
     models = {
         "randomforest": RandomForestClassifier(

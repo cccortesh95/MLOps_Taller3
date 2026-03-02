@@ -8,18 +8,17 @@ Preprocesamiento basado en train.ipynb:
 - Guardar datos preprocesados en curated
 """
 import pandas as pd
-import mysql.connector
+from airflow.providers.mysql.hooks.mysql import MySqlHook
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import joblib
 import os
-from src.config import MYSQL_CONFIG, MODELS_PATH
+from src.config import MYSQL_CONN_ID, MODELS_PATH
 
 
 def preprocess_data():
-    conn = mysql.connector.connect(database="raw", **MYSQL_CONFIG)
-    df = pd.read_sql("SELECT * FROM raw_penguins", conn)
-    conn.close()
+    raw_hook = MySqlHook(mysql_conn_id=MYSQL_CONN_ID, schema="raw")
+    df = raw_hook.get_pandas_df("SELECT * FROM raw_penguins")
 
     df_clean = df.drop("id", axis=1)
 
@@ -41,7 +40,8 @@ def preprocess_data():
     os.makedirs(MODELS_PATH, exist_ok=True)
     joblib.dump(scaler, os.path.join(MODELS_PATH, "scaler.pkl"))
 
-    conn = mysql.connector.connect(database="curated", **MYSQL_CONFIG)
+    curated_hook = MySqlHook(mysql_conn_id=MYSQL_CONN_ID, schema="curated")
+    conn = curated_hook.get_conn()
     cursor = conn.cursor()
 
     for table_name, data in [
