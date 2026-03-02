@@ -220,12 +220,12 @@ Cada pipeline se guarda como `.pkl`. Al incluir el scaler, el modelo es autosufi
 #### Modelos generados
 
 <!-- Imagen: ls de /opt/airflow/models/ mostrando los .pkl -->
-![Modelos]()
+![Modelos](images/generated_models.png)
 
 #### Métricas
 
 <!-- Imagen: Dataframe de métricas -->
-![Métricas]()
+![Métricas](images/metrics.png)
 
 ---
 
@@ -242,7 +242,7 @@ Se monta en dos rutas distintas según el servicio:
 
 | Servicio | Ruta de montaje | Uso |
 |----------|----------------|-----|
-| Airflow (worker, scheduler, etc.) | `/opt/airflow/models` | Escritura de `.pkl` |
+| Airflow | `/opt/airflow/models` | Escritura de `.pkl` |
 | penguin-api | `/app/models` | Lectura de `.pkl` |
 
 ### 7.1 Permisos de escritura
@@ -321,17 +321,10 @@ Recibe las features de un pingüino, calcula las features derivadas (`bill_ratio
 #### API respondiendo
 
 <!-- Imagen: Respuesta de GET /health o /models -->
-![API health]()
+![API health](images/api_health.png)
 
 #### Predicción exitosa
 
 <!-- Imagen: Respuesta de POST /classify con un modelo -->
-![Predicción]()
-
-#### Swagger UI
-
-La documentación interactiva está disponible en `http://localhost:8989/docs`.
-
-<!-- Imagen: Swagger UI de la API -->
-![Swagger]()
+![Predicción](images/api_prediction.png)
 
