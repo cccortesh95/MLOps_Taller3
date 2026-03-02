@@ -12,6 +12,13 @@
    4. [Volúmenes](#44-volúmenes)
    5. [Health check](#45-health-check)
 5. [Script de inicialización (`mysql-init/init.sql`)](#5-script-de-inicialización-mysql-initsql)
+6. [DAG: penguins_pipeline](#6-dag-penguins_pipeline)
+   1. [Visión general](#61-visión-general)
+   2. [Task 1 y 2: clear_raw / clear_curated](#62-task-1-y-2-clear_raw--clear_curated)
+   3. [Task 3: load_raw_penguins](#63-task-3-load_raw_penguins)
+   4. [Task 4: preprocess_data](#64-task-4-preprocess_data)
+   5. [Task 5: train_models](#65-task-5-train_models)
+   6. [Evidencias de ejecución](#66-evidencias-de-ejecución)
 
 ---
 
@@ -224,3 +231,88 @@ FLUSH PRIVILEGES;
 - **Separación de responsabilidades**: La infraestructura de datos se define de forma declarativa, separada de la lógica del pipeline.
 - **Permisos controlados**: Se otorgan privilegios al usuario `user` sobre `raw` y `curated` explícitamente.
 - **Tabla pre-creada**: `raw.raw_penguins` se crea aquí para que el task `clear_raw` (`TRUNCATE TABLE`) no falle en la primera ejecución.
+
+
+---
+
+## 6. DAG: penguins_pipeline
+
+### 6.1 Visión general
+
+El DAG `penguins_pipeline` orquesta un pipeline de ML para clasificación de especies de pingüinos. Consta de 5 tasks ejecutados secuencialmente:
+
+```
+[clear_raw, clear_curated] >> load_raw_penguins >> preprocess_data >> train_models
+```
+
+Los dos primeros tasks corren en paralelo (limpian las tablas), y el resto es secuencial.
+
+<!-- Imagen: DAG en Airflow UI (Graph View) -->
+![DAG Graph View]()
+
+### 6.2 Task 1 y 2: clear_raw / clear_curated
+
+Usan `MySqlOperator` para ejecutar `TRUNCATE TABLE` sobre `raw.raw_penguins` y `curated.curated_penguins`. Garantizan que cada ejecución del pipeline parta de tablas vacías, evitando duplicados.
+
+Se ejecutan en paralelo porque no tienen dependencia entre sí.
+
+### 6.3 Task 3: load_raw_penguins
+
+Lee el CSV desde `/opt/airflow/dataset/penguins_v1.csv` y lo inserta fila por fila en `raw.raw_penguins`. Usa `MySqlHook` para obtener la conexión desde Airflow. La tabla se crea si no existe (aunque ya viene pre-creada en el init.sql).
+
+### 6.4 Task 4: preprocess_data
+
+Lee los datos de `raw.raw_penguins`, aplica las siguientes transformaciones y guarda el resultado en `curated.curated_penguins`:
+
+- Elimina la columna `id`
+- Calcula `bill_ratio = bill_length_mm / bill_depth_mm`
+- Calcula `body_mass_kg = body_mass_g / 1000`
+
+Se decidió mantener este paso ligero (solo feature engineering) y delegar el split y escalado al task de entrenamiento, para que los datos en curated sean reutilizables por otros procesos sin estar atados a un split específico.
+
+### 6.5 Task 5: train_models
+
+Lee de `curated.curated_penguins` y ejecuta:
+
+1. Separación de features (X) y target (y = species)
+2. Split train/test (80/20, stratificado, random_state=42)
+3. Entrenamiento de 3 modelos, cada uno dentro de un `sklearn.pipeline.Pipeline` que incluye `StandardScaler` + clasificador:
+   - RandomForest (n_estimators=100, max_depth=10)
+   - SVM (kernel=rbf, C=1.0)
+   - GradientBoosting (n_estimators=100, max_depth=5, lr=0.1)
+
+Cada pipeline se serializa como `{nombre}_pipeline.pkl` en `/opt/airflow/models/`. Al incluir el scaler dentro del pipeline, el modelo guardado es autosuficiente para hacer predicciones sin preprocesamiento adicional.
+
+Las métricas (accuracy, precision, recall, f1) se guardan en `model_metrics.pkl`.
+
+### 6.6 Evidencias de ejecución
+
+#### DAG ejecutado exitosamente
+
+<!-- Imagen: Tree View o Grid View mostrando todos los tasks en verde -->
+![DAG ejecución exitosa]()
+
+#### Logs de ejecución
+
+<!-- Imagen: Log de algún task mostrando ejecución exitosa -->
+![Logs de ejecución]()
+
+#### Datos en raw.raw_penguins
+
+<!-- Imagen: Query SELECT en raw.raw_penguins mostrando los datos cargados -->
+![Datos en raw]()
+
+#### Datos en curated.curated_penguins
+
+<!-- Imagen: Query SELECT en curated.curated_penguins mostrando las columnas derivadas -->
+![Datos en curated]()
+
+#### Modelos generados
+
+<!-- Imagen: Listado de archivos en /opt/airflow/models/ o ls mostrando los .pkl -->
+![Modelos generados]()
+
+#### Métricas de los modelos
+
+<!-- Imagen: Output de model_metrics.pkl o print del dataframe de métricas -->
+![Métricas]()
