@@ -3,9 +3,9 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.mysql.operators.mysql import MySqlOperator
 from datetime import datetime
 
-from src.load_raw_penguins import load_raw_penguins
-from src.preprocess_data import preprocess_data
-from src.train_models import train_models
+from penguins_pipeline.src.load_raw_penguins import load_raw_penguins
+from penguins_pipeline.src.preprocess_data import preprocess_data
+from penguins_pipeline.src.train_models import train_models
 
 MYSQL_CONN_ID = "mysql_default"
 

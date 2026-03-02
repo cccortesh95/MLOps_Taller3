@@ -11,7 +11,7 @@ from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import joblib
 import os
-from src.config import MYSQL_CONN_ID, MODELS_PATH
+from penguins_pipeline.src.config import MYSQL_CONN_ID, MODELS_PATH
 
 
 def train_models():

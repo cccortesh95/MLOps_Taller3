@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import joblib
 import os
-from src.config import MYSQL_CONN_ID, MODELS_PATH
+from penguins_pipeline.src.config import MYSQL_CONN_ID, MODELS_PATH
 
 
 def preprocess_data():
