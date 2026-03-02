@@ -1,13 +1,10 @@
-"""
-Entrenamiento basado en train.ipynb:
-- Leer datos preprocesados de curated
-- Entrenar RandomForest, SVM y GradientBoosting
-- Evaluar y guardar modelos y métricas
-"""
 import pandas as pd
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.svm import SVC
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import joblib
 import os
@@ -16,29 +13,42 @@ from penguins_pipeline.src.config import MYSQL_CONN_ID, MODELS_PATH
 
 def train_models():
     hook = MySqlHook(mysql_conn_id=MYSQL_CONN_ID, schema="curated")
-    X_train = hook.get_pandas_df("SELECT * FROM X_train")
-    X_test = hook.get_pandas_df("SELECT * FROM X_test")
-    y_train = hook.get_pandas_df("SELECT * FROM y_train")["species"]
-    y_test = hook.get_pandas_df("SELECT * FROM y_test")["species"]
+    df = hook.get_pandas_df("SELECT * FROM curated_penguins")
+
+    X = df.drop("species", axis=1)
+    y = df["species"]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
 
     models = {
-        "randomforest": RandomForestClassifier(
-            n_estimators=100, max_depth=10, random_state=42, n_jobs=-1
-        ),
-        "svm": SVC(kernel="rbf", C=1.0, random_state=42),
-        "gradientboosting": GradientBoostingClassifier(
-            n_estimators=100, max_depth=5, learning_rate=0.1, random_state=42
-        ),
+        "randomforest": Pipeline([
+            ("scaler", StandardScaler()),
+            ("clf", RandomForestClassifier(
+                n_estimators=100, max_depth=10, random_state=42, n_jobs=-1
+            )),
+        ]),
+        "svm": Pipeline([
+            ("scaler", StandardScaler()),
+            ("clf", SVC(kernel="rbf", C=1.0, random_state=42)),
+        ]),
+        "gradientboosting": Pipeline([
+            ("scaler", StandardScaler()),
+            ("clf", GradientBoostingClassifier(
+                n_estimators=100, max_depth=5, learning_rate=0.1, random_state=42
+            )),
+        ]),
     }
 
     os.makedirs(MODELS_PATH, exist_ok=True)
     metrics_list = []
 
-    for name, model in models.items():
-        model.fit(X_train, y_train)
+    for name, pipeline in models.items():
+        pipeline.fit(X_train, y_train)
 
-        y_train_pred = model.predict(X_train)
-        y_test_pred = model.predict(X_test)
+        y_train_pred = pipeline.predict(X_train)
+        y_test_pred = pipeline.predict(X_test)
 
         metrics_list.append(
             {
@@ -51,7 +61,7 @@ def train_models():
             }
         )
 
-        joblib.dump(model, os.path.join(MODELS_PATH, f"{name}_model.pkl"))
+        joblib.dump(pipeline, os.path.join(MODELS_PATH, f"{name}_pipeline.pkl"))
 
     df_metrics = pd.DataFrame(metrics_list)
     joblib.dump(df_metrics, os.path.join(MODELS_PATH, "model_metrics.pkl"))
