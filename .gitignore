@@ -1,5 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
 train.ipynb
-logs/*
-models/*
-dags/__pycache__
-dags/penguins_pipeline/__pycache__
+.ipynb_checkpoints/
+
+# Airflow logs
+logs/
+
+# Generated models/artifacts
+models/
