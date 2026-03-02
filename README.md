@@ -164,7 +164,25 @@ Las tablas se pre-crean para que los `TRUNCATE TABLE` del DAG no fallen en la pr
 
 ## 6. DAG: penguins_pipeline
 
-### 6.1 Workflow
+### 6.1 Configuración del objeto DAG
+
+```python
+with DAG(
+    dag_id="penguins_pipeline",
+    start_date=datetime(2026, 2, 28),
+    schedule_interval=None,
+    catchup=False,
+    tags=["mlops", "penguins"],
+) as dag:
+```
+
+- `dag_id="penguins_pipeline"`: Identificador único del DAG en Airflow. Es el nombre que aparece en la UI y en los logs.
+- `start_date=datetime(2026, 2, 28)`: Fecha a partir de la cual el DAG es elegible para ejecución. Airflow no programará runs anteriores a esta fecha.
+- `schedule_interval=None`: El DAG no se ejecuta automáticamente en ningún intervalo. Solo se dispara manualmente desde la UI o via API. Se eligió `None` porque el pipeline se ejecuta bajo demanda, no de forma periódica.
+- `catchup=False`: Desactiva la ejecución retroactiva. Sin esto, Airflow intentaría crear runs para cada intervalo entre `start_date` y la fecha actual. Con `catchup=False` solo se ejecuta el run actual cuando se dispara.
+- `tags=["mlops", "penguins"]`: Etiquetas para filtrar y agrupar DAGs en la UI de Airflow. Facilitan la búsqueda cuando hay muchos DAGs registrados.
+
+### 6.2 Workflow
 
 ```
 [clear_raw, clear_curated] >> load_raw_penguins >> preprocess_data >> train_models
@@ -175,22 +193,22 @@ Las tablas se pre-crean para que los `TRUNCATE TABLE` del DAG no fallen en la pr
 <!-- Imagen: Graph View del DAG en Airflow -->
 ![DAG Graph View](images/dag_graph_view.png)
 
-### 6.2 clear_raw / clear_curated
+### 6.3 clear_raw / clear_curated
 
 Con el operador `MySqlOperator` ejecutamos un `TRUNCATE TABLE` sobre ambas tablas. De esta manera se garantiza que cada ejecución parta de tablas vacías.
 
-### 6.3 load_raw_penguins
+### 6.4 load_raw_penguins
 
 Lee el CSV y lo inserta en `raw.raw_penguins` usando `MySqlHook`.
 
-### 6.4 preprocess_data
+### 6.5 preprocess_data
 
 Lee de `raw`, elimina `id`, calcula features derivadas y guarda en `curated.curated_penguins`:
 
 - `bill_ratio = bill_length_mm / bill_depth_mm`
 - `body_mass_kg = body_mass_g / 1000`
 
-### 6.5 train_models
+### 6.6 train_models
 
 Lee de `curated`, separa features/target, hace split 80/20 y entrena 3 modelos dentro de `sklearn.pipeline.Pipeline` (StandardScaler + clasificador):
 
@@ -200,7 +218,7 @@ Lee de `curated`, separa features/target, hace split 80/20 y entrena 3 modelos d
 
 Cada pipeline se guarda como `.pkl`. Al incluir el scaler, el modelo es autosuficiente para predicción.
 
-### 6.6 Evidencias de ejecución
+### 6.7 Evidencias de ejecución
 
 #### DAG ejecutado
 
