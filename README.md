@@ -43,7 +43,6 @@ docker compose -f docker/docker-compose.yaml down -v
 ```
 
 <!-- Imagen: Contenedores corriendo (docker ps) -->
-![Contenedores corriendo]()
 
 ---
 
@@ -77,7 +76,7 @@ USER airflow
 con las variables de entorno `UV_SYSTEM_PYTHON` y `UV_PROJECT_ENVIRONMENT` evitamos que uv cree un virtualenv y fuerzan la instalación en el Python del sistema, donde Airflow busca los paquetes.
 
 <!-- Imagen: Build exitoso del Dockerfile -->
-![Docker build]()
+![Docker build](images/docker_build.png)
 
 ---
 
@@ -126,7 +125,7 @@ mysql:
 - Health check con `mysqladmin ping` y 30s de gracia para que MySQL termine de inicializar.
 
 <!-- Imagen: Servicio MySQL healthy en docker ps -->
-![MySQL healthy]()
+![MySQL healthy](images/mysql_healthy.png)
 
 ---
 
@@ -149,7 +148,7 @@ FLUSH PRIVILEGES;
 Las tablas se pre-crean para que los `TRUNCATE TABLE` del DAG no fallen en la primera ejecución.
 
 <!-- Imagen: Bases de datos y tablas creadas en MySQL -->
-![BD inicializada]()
+![BD inicializada](images/bd_inicializada.png)
 
 ---
 
@@ -164,7 +163,7 @@ Las tablas se pre-crean para que los `TRUNCATE TABLE` del DAG no fallen en la pr
 5 tasks: los dos primeros en paralelo (limpieza), el resto secuencial.
 
 <!-- Imagen: Graph View del DAG en Airflow -->
-![DAG Graph View]()
+![DAG Graph View](images/dag_graph_view.png)
 
 ### 6.2 clear_raw / clear_curated
 
@@ -196,22 +195,17 @@ Cada pipeline se guarda como `.pkl`. Al incluir el scaler, el modelo es autosufi
 #### DAG ejecutado
 
 <!-- Imagen: Grid/Tree View con todos los tasks en verde -->
-![DAG exitoso]()
-
-#### Logs
-
-<!-- Imagen: Log de un task exitoso -->
-![Logs]()
+![DAG exitoso](images/dag_exitoso.png)
 
 #### Datos en raw.raw_penguins
 
 <!-- Imagen: SELECT de raw.raw_penguins -->
-![Datos raw]()
+![Datos raw](images/datos_raw.png)
 
 #### Datos en curated.curated_penguins
 
 <!-- Imagen: SELECT de curated.curated_penguins mostrando bill_ratio y body_mass_kg -->
-![Datos curated]()
+![Datos curated](images/datos_curated.png)
 
 #### Modelos generados
 
