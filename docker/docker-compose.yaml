@@ -1,7 +1,8 @@
 x-airflow-common:
   &airflow-common
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.6.0}
-  build: .
+  image: ${AIRFLOW_IMAGE_NAME:-penguins-airflow:latest}
+  build:
+    context: airflow
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -20,7 +21,7 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-..}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-..}/plugins:/opt/airflow/plugins
     - ${AIRFLOW_PROJ_DIR:-..}/dataset:/opt/airflow/dataset
-    - ${AIRFLOW_PROJ_DIR:-..}/models:/opt/airflow/models
+    - models_data:/opt/airflow/models
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -211,6 +212,8 @@ services:
         fi
         mkdir -p /sources/logs /sources/dags /sources/plugins
         chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins}
+        chown -R "${AIRFLOW_UID}:0" /opt/airflow/models
+        chmod -R 775 /opt/airflow/models
         exec /entrypoint airflow version
     # yamllint enable rule:line-length
     environment:
@@ -223,6 +226,7 @@ services:
     user: "0:0"
     volumes:
       - ${AIRFLOW_PROJ_DIR:-..}:/sources
+      - models_data:/opt/airflow/models
 
   airflow-cli:
     <<: *airflow-common
@@ -259,6 +263,25 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+  penguin-api:
+    build:
+      context: ..
+      dockerfile: docker/api/Dockerfile
+    ports:
+      - "8989:8000"
+    volumes:
+      - models_data:/app/models
+    environment:
+      MODELS_DIR: /app/models
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    restart: always
+
 volumes:
   postgres-db-volume:
   mysql_data:
+  models_data:

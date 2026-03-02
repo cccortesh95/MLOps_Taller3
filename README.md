@@ -8,12 +8,19 @@
 4. [Servicio MySQL en Docker Compose](#4-servicio-mysql-en-docker-compose)
 5. [Script de inicialización de BD](#5-script-de-inicialización-de-bd)
 6. [DAG: penguins_pipeline](#6-dag-penguins_pipeline)
+7. [Volumen compartido de modelos](#7-volumen-compartido-de-modelos)
+8. [API de predicción](#8-api-de-predicción)
 
 ---
 
 ## 1. Estructura del Proyecto
 
 ```
+├── api/                              # API de predicción (FastAPI)
+│   ├── app.py                        # Endpoints
+│   └── utils/
+│       ├── logger.py                 # Logger de predicciones
+│       └── model_utils.py            # Carga y descubrimiento de modelos
 ├── dags/penguins_pipeline/
 │   ├── penguins_pipeline.py          # DAG principal
 │   └── src/
@@ -23,10 +30,13 @@
 │       └── train_models.py           # Entrenamiento con Pipeline de sklearn
 ├── dataset/                          # CSV de entrada
 ├── docker/
-│   ├── Dockerfile                    # Imagen custom de Airflow
-│   ├── docker-compose.yaml           # Orquestación de servicios
-│   └── pyproject.toml                # Dependencias (PEP 621)
-├── models/                           # Modelos y métricas generados
+│   ├── airflow/
+│   │   ├── Dockerfile                # Imagen custom de Airflow
+│   │   └── pyproject.toml            # Dependencias de Airflow
+│   ├── api/
+│   │   ├── Dockerfile                # Imagen de la API
+│   │   └── pyproject.toml            # Dependencias de la API
+│   └── docker-compose.yaml           # Orquestación de servicios
 ├── mysql-init/
 │   └── init.sql                      # Esquemas y permisos iniciales
 └── plugins/
@@ -54,7 +64,7 @@ El docker-compose oficial de Airflow ofrece la variable `_PIP_ADDITIONAL_REQUIRE
 
 2. `_PIP_ADDITIONAL_REQUIREMENTS` instala las dependencias cada vez que un contenedor arranca. Con un Dockerfile custom, las dependencias se instalan una sola vez durante el build de la imagen y quedan en la cache.
 
-Se usó uv como gestor de paquetes por su velocidad. Definimos las dependencias en `docker/pyproject.toml` y se instalan con `uv sync --no-dev`.
+Se usó uv como gestor de paquetes por su velocidad. Definimos las dependencias en `docker/airflow/pyproject.toml` y se instalan con `uv sync --no-dev`.
 
 ```dockerfile
 FROM apache/airflow:2.6.0
@@ -216,3 +226,120 @@ Cada pipeline se guarda como `.pkl`. Al incluir el scaler, el modelo es autosufi
 
 <!-- Imagen: Dataframe de métricas -->
 ![Métricas]()
+
+---
+
+## 7. Volumen compartido de modelos
+
+El DAG genera los modelos `.pkl` en Airflow y la API necesita leerlos para servir predicciones. Para compartir estos archivos entre ambos servicios se usa un named volume de Docker llamado `models_data`.
+
+```yaml
+volumes:
+  models_data:
+```
+
+Se monta en dos rutas distintas según el servicio:
+
+| Servicio | Ruta de montaje | Uso |
+|----------|----------------|-----|
+| Airflow (worker, scheduler, etc.) | `/opt/airflow/models` | Escritura de `.pkl` |
+| penguin-api | `/app/models` | Lectura de `.pkl` |
+
+### 7.1 Permisos de escritura
+
+Docker crea los named volumes con propietario `root`, pero los servicios de Airflow corren como usuario `50000:0`. Para que el task `train_models` pueda escribir en el volumen, el servicio `airflow-init` (que corre como root) ajusta los permisos durante la inicialización.
+
+Se montó el volumen explícitamente en `airflow-init` porque este servicio sobreescribe los volumes heredados de `x-airflow-common`:
+
+```yaml
+airflow-init:
+  volumes:
+    - ${AIRFLOW_PROJ_DIR:-..}:/sources
+    - models_data:/opt/airflow/models
+```
+
+Y en el script de inicialización se cambia el propietario y los permisos:
+
+```bash
+chown -R "${AIRFLOW_UID}:0" /opt/airflow/models
+chmod -R 775 /opt/airflow/models
+```
+
+---
+
+## 8. API de predicción
+
+### 8.1 Integración en Docker Compose
+
+La API se agregó como servicio `penguin-api` en el compose. Comparte un volumen `models_data` con Airflow para acceder a los modelos generados por el pipeline:
+
+```yaml
+penguin-api:
+  build:
+    context: ..
+    dockerfile: docker/api/Dockerfile
+  ports:
+    - "8989:8000"
+  volumes:
+    - models_data:/app/models
+  environment:
+    MODELS_DIR: /app/models
+  healthcheck:
+    test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+    interval: 30s
+    timeout: 10s
+    retries: 5
+    start_period: 15s
+  restart: always
+```
+
+El volumen `models_data` se monta en `/opt/airflow/models` para Airflow (donde el DAG escribe los `.pkl`) y en `/app/models` para la API, donde los lee para servir predicciones.
+
+Al usar un named volume, Docker lo crea como root. Para que el usuario `airflow` (UID 50000) pueda escribir los modelos, se agregó un `chown` en el servicio `airflow-init`:
+
+```bash
+chown -R "${AIRFLOW_UID}:0" /opt/airflow/models
+```
+
+La API corre internamente en el puerto 8000 y se expone en el puerto 8989 del host.
+
+<!-- Imagen: Servicio penguin-api corriendo -->
+![API corriendo]()
+
+### 8.2 Dockerfile de la API
+
+La imagen usa Python 3.9 con uv para instalar las dependencias desde `docker/api/pyproject.toml`. Se copian los fuentes de `api/` al contenedor.
+
+### 8.3 Endpoints
+
+#### GET /health
+
+Endpoint de health check que retorna `{"status": "ok"}`. Se creó para que Docker Compose pueda verificar que la API está lista y respondiendo. El healthcheck del compose hace una petición a este endpoint cada 30 segundos usando `urllib` de Python (la imagen slim no incluye curl).
+
+#### GET /models
+
+Lista los modelos disponibles dinámicamente escaneando el directorio de modelos. Retorna nombre, endpoint de clasificación y métricas de cada modelo.
+
+#### POST /classify/{model_name}
+
+Recibe las features de un pingüino, calcula las features derivadas (`bill_ratio`, `body_mass_kg`), ejecuta la predicción con el modelo solicitado y retorna la especie.
+
+### 8.4 Evidencias
+
+#### API respondiendo
+
+<!-- Imagen: Respuesta de GET /health o /models -->
+![API health]()
+
+#### Predicción exitosa
+
+<!-- Imagen: Respuesta de POST /classify con un modelo -->
+![Predicción]()
+
+#### Swagger UI
+
+La documentación interactiva está disponible en `http://localhost:8989/docs`.
+
+<!-- Imagen: Swagger UI de la API -->
+![Swagger]()
+
