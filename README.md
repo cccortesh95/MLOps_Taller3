@@ -1,4 +1,4 @@
-# Penguins MLOps Pipeline — Decisiones de Arquitectura
+#Taller 3 MLOps
 
 ## Tabla de Contenidos
 
@@ -324,7 +324,7 @@ La imagen usa Python 3.9 con uv para instalar las dependencias desde `docker/api
 
 #### GET /health
 
-Endpoint de health check que retorna `{"status": "ok"}`. Se creó para que Docker Compose pueda verificar que la API está lista y respondiendo. El healthcheck del compose hace una petición a este endpoint cada 30 segundos usando `urllib` de Python (la imagen slim no incluye curl).
+Endpoint de health check que retorna `{"status": "ok"}`. Se creó para que Docker Compose pueda verificar que la API está lista y respondiendo. El healthcheck del compose hace una petición a este endpoint cada 30 segundos usando `urllib` de Python, ya que la imagen base no incluye curl.
 
 #### GET /models
 
