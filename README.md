@@ -314,7 +314,7 @@ penguin-api:
 La API corre internamente en el puerto 8000 y se expone en el puerto 8989 del host. El volumen compartido con Airflow se detalla en la [sección 7](#7-volumen-compartido-de-modelos).
 
 <!-- Imagen: Servicio penguin-api corriendo -->
-![API corriendo]()
+![API corriendo](images/API_Corriendo.png)
 
 ### 8.2 Dockerfile de la API
 
@@ -345,4 +345,10 @@ Recibe las features de un pingüino, calcula las features derivadas (`bill_ratio
 
 <!-- Imagen: Respuesta de POST /classify con un modelo -->
 ![Predicción](images/api_prediction.png)
+
+## 👥 Colaboradores
+
+- 🧑‍💻 **Camilo Cortés** — [![GitHub](https://img.shields.io/badge/GitHub-@cccortesh95-181717?logo=github)](https://github.com/cccortesh95)
+- 🧑‍💻 **Johnny Castañeda** — [![GitHub](https://img.shields.io/badge/GitHub-@Johnny--Castaneda--Marin-181717?logo=github)](https://github.com/Johnny-Castaneda-Marin)
+- 🧑‍💻 **Benkos Triana** — [![GitHub](https://img.shields.io/badge/GitHub-@BenkosT-181717?logo=github)](https://github.com/BenkosT)
 
